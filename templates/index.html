@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Formula Booklets{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-lg-8">
+      <h1 class="mb-3">Available booklets</h1>
+      <p class="text-muted">PDFs are served from the <code>booklet/</code> folder as <code>name_year.pdf</code>.</p>
+
+      {% if items %}
+        <div class="row row-cols-1 row-cols-md-2 g-3">
+          {% for item in items %}
+            <div class="col">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title mb-1">{{ item.name }}</h5>
+                  {% if item.year %}
+                    <p class="card-subtitle text-muted mb-3">{{ item.year }}</p>
+                  {% else %}
+                    <p class="card-subtitle text-muted mb-3">&nbsp;</p>
+                  {% endif %}
+
+                  <a
+                    class="btn btn-primary"
+                    href="{{ url_for('serve_booklet', filename=item.filename) }}"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Open PDF
+                  </a>
+                </div>
+                <div class="card-footer bg-transparent text-muted small">
+                  {{ item.filename }}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-warning" role="alert">
+          No PDFs found in <code>booklet/</code>.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
