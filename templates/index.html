@@ -6,7 +6,7 @@
   <div class="row">
     <div class="col-lg-8">
       <h1 class="mb-3">Available booklets</h1>
-      <p class="text-muted">PDFs are served from the <code>booklet/</code> folder as <code>name_year.pdf</code>.</p>
+      <p class="text-muted">PDFs are served from the <code>booklets/</code> folder as <code>name_year.pdf</code>.</p>
 
       {% if items %}
         <div class="row row-cols-1 row-cols-md-2 g-3">
@@ -23,7 +23,7 @@
 
                   <a
                     class="btn btn-primary"
-                    href="{{ url_for('serve_booklet', filename=item.filename) }}"
+                    href="{{ url_for('serve_booklets', filename=item.filename) }}"
                     target="_blank"
                     rel="noopener"
                   >
@@ -39,7 +39,7 @@
         </div>
       {% else %}
         <div class="alert alert-warning" role="alert">
-          No PDFs found in <code>booklet/</code>.
+          No PDFs found in <code>booklets/</code>.
         </div>
       {% endif %}
     </div>
