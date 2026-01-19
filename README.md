@@ -1,10 +1,10 @@
 # Formula Booklet Website (Flask)
 
-This is a small Flask site that lists PDF files in the `booklet/` folder and serves them at `/booklets/<filename>`.
+This is a small Flask site that lists PDF files in the `booklets/` folder and serves them at `/booklets/<filename>`.
 
 ## Folder layout
 
-- `booklet/` — your PDFs (expected format: `name_year.pdf`)
+- `booklets/` — your PDFs (expected format: `name_year.pdf`)
 - `templates/` — HTML templates (Bootswatch **Brite** theme)
 - `app.py` — Flask app
 
@@ -23,8 +23,8 @@ Then open:
 
 ## PythonAnywhere notes
 
-- Point your WSGI file at `app` inside `app.py` (this repo exposes `app = create_app()`).
-- Make sure the `booklet/` folder exists in the same directory as `app.py` on PythonAnywhere.
+- Point your WSGI file at `flask_app` inside `flask_app.py` (this repo exposes `app = create_app()`).
+- Make sure the `booklets/` folder exists in the same directory as `app.py` on PythonAnywhere.
 
 The serving route is:
 

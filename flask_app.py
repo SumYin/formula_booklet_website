@@ -7,7 +7,7 @@ from flask import Flask, abort, render_template, send_from_directory
 
 
 BASE_DIR = Path(__file__).resolve().parent
-BOOKLETS_FOLDER = BASE_DIR / "booklet"
+BOOKLETS_FOLDER = BASE_DIR / "booklets"
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,13 @@ _FILENAME_RE = re.compile(r"^(?P<name>.+)_(?P<year>\d{4})\.pdf$", re.IGNORECASE)
 
 def create_app() -> Flask:
     app = Flask(__name__)
+
+    app.config.from_mapping(
+        CONTACT_EMAIL=os.environ.get("CONTACT_EMAIL", "suzhang@asbarcelona.com"),
+        GITHUB_REPO_URL=os.environ.get(
+            "GITHUB_REPO_URL", "https://github.com/sumyin/formula_booklet_website"
+        ),
+    )
 
     @app.get("/")
     def index():
@@ -41,7 +48,16 @@ def create_app() -> Flask:
 
                 items.append(BookletItem(filename=entry, name=name, year=year))
 
-        return render_template("index.html", items=items)
+        return render_template("index.html", items=items, active_page="home")
+
+    @app.get("/contact")
+    def contact():
+        return render_template(
+            "contact.html",
+            active_page="contact",
+            contact_email=app.config["CONTACT_EMAIL"],
+            github_repo_url=app.config["GITHUB_REPO_URL"],
+        )
 
     @app.get("/booklets/<path:filename>")
     def serve_booklet(filename: str):

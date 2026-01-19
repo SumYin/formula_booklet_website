@@ -12,7 +12,8 @@
         <div class="row row-cols-1 row-cols-md-2 g-3">
           {% for item in items %}
             <div class="col">
-              <div class="card h-100">
+              <div class="card h-100 fx-card" data-fx="glow-matrix">
+                <div class="fx-matrix" aria-hidden="true"></div>
                 <div class="card-body">
                   <h5 class="card-title mb-1">{{ item.name }}</h5>
                   {% if item.year %}
@@ -23,7 +24,7 @@
 
                   <a
                     class="btn btn-primary"
-                    href="{{ url_for('serve_booklets', filename=item.filename) }}"
+                    href="{{ url_for('serve_booklet', filename=item.filename) }}"
                     target="_blank"
                     rel="noopener"
                   >
