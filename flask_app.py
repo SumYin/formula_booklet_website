@@ -25,7 +25,8 @@ _EFFECT_BY_KEYWORD: dict[str, str] = {
     # Allow multiple keywords to map to the same effect.
     "math": "glow-matrix",
     "physics": "vector-field",
-    # "chemistry": "..."  # placeholder for future custom effect
+    "chem": "molecules",
+    "chemistry": "molecules",
 }
 
 

@@ -91,6 +91,15 @@
   box-shadow: none;
 }
 
+.fx-card[data-fx="molecules"]::before,
+.fx-card[data-fx="molecules"]::after,
+.fx-card[data-fx="molecules"]:hover::before,
+.fx-card[data-fx="molecules"]:hover::after {
+  opacity: 0;
+  background: none;
+  box-shadow: none;
+}
+
 .fx-card:hover::before,
 .fx-card:hover::after,
 .fx-card:hover .fx-matrix,

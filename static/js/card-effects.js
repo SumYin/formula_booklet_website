@@ -10,6 +10,7 @@
   const registry = {
     'glow-matrix': createGlowMatrixEffect,
     'vector-field': createVectorFieldEffect,
+    'molecules': createMoleculesEffect,
   };
 
   const controllers = new WeakMap();
@@ -36,17 +37,22 @@
       return ctrl;
     }
 
+    const shouldTrackGlow = fxName === 'glow-matrix';
+    const shouldTrackMove = fxName !== 'molecules';
+
     card.addEventListener('mouseenter', (evt) => {
-      setGlowVarsFromEvent(card, evt);
+      if (shouldTrackGlow) setGlowVarsFromEvent(card, evt);
       const ctrl = ensureController();
       if (ctrl && ctrl.onEnter) ctrl.onEnter(evt);
     });
 
-    card.addEventListener('mousemove', (evt) => {
-      setGlowVarsFromEvent(card, evt);
-      const ctrl = controllers.get(card);
-      if (ctrl && ctrl.onMove) ctrl.onMove(evt);
-    });
+    if (shouldTrackMove || shouldTrackGlow) {
+      card.addEventListener('mousemove', (evt) => {
+        if (shouldTrackGlow) setGlowVarsFromEvent(card, evt);
+        const ctrl = controllers.get(card);
+        if (ctrl && ctrl.onMove) ctrl.onMove(evt);
+      });
+    }
 
     card.addEventListener('mouseleave', (evt) => {
       const ctrl = controllers.get(card);
@@ -364,6 +370,382 @@
         cursorY = evt.clientY - rect.top;
         hasCursor = true;
       },
+      onLeave: () => stop(),
+    };
+  }
+
+  // -------------------------
+  // Effect: molecules (Chemistry)
+  // -------------------------
+
+  function createMoleculesEffect(card) {
+    const canvas = card.querySelector('canvas.fx-canvas');
+    if (!canvas) return {};
+
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+    if (!ctx) return {};
+
+    function parseCssColorToRgb(color) {
+      // Handles 'rgb(r,g,b)' and 'rgba(r,g,b,a)'
+      const m = String(color)
+        .trim()
+        .match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      if (!m) return null;
+      return [Number(m[1]), Number(m[2]), Number(m[3])];
+    }
+
+    const rootStyles = getComputedStyle(document.documentElement);
+    const primaryRgb = parseRgbTriplet(rootStyles.getPropertyValue('--bs-primary-rgb'));
+    const dangerRgb = parseRgbTriplet(rootStyles.getPropertyValue('--bs-danger-rgb'));
+    const warningRgb = parseRgbTriplet(rootStyles.getPropertyValue('--bs-warning-rgb'));
+    const successRgb = parseRgbTriplet(rootStyles.getPropertyValue('--bs-success-rgb'));
+    const bodyRgb = parseRgbTriplet(rootStyles.getPropertyValue('--bs-body-color-rgb'));
+    const pageBgRgb = parseCssColorToRgb(getComputedStyle(document.body).backgroundColor) || [255, 255, 255];
+
+    let running = false;
+    let rafId = 0;
+    let lastTs = 0;
+    let dpr = 1;
+    let clearTimer = null;
+    let width = 0;
+    let height = 0;
+    let molecules = [];
+
+    const config = {
+      // Target density; actual count scales with card area.
+      minCount: 8,
+      maxCount: 14,
+      pixelsPerMolecule: 6500,
+      maxFps: 30,
+    };
+
+    function desiredCount() {
+      const byArea = Math.max(1, Math.round((width * height) / config.pixelsPerMolecule));
+      return Math.max(config.minCount, Math.min(config.maxCount, byArea));
+    }
+
+    function rgba(rgb, a) {
+      return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`;
+    }
+
+    function resize() {
+      const rect = card.getBoundingClientRect();
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function elementColor(el) {
+      switch (el) {
+        case 'C':
+          return bodyRgb; // black/dark
+        case 'O':
+          return dangerRgb; // red
+        case 'N':
+          return primaryRgb; // blue
+        case 'S':
+          return warningRgb; // yellow
+        case 'Cl':
+          return successRgb; // green
+        case 'H':
+          return pageBgRgb; // white-ish, depends on page
+        default:
+          return bodyRgb;
+      }
+    }
+
+    function elementRadius(el) {
+      // Make circles 1.5x bigger (overall scale factor).
+      // Keep H slightly smaller than heavy atoms.
+      const scale = 1.5;
+      const base = el === 'H' ? 1.8 : 2.3;
+      return base * scale;
+    }
+
+    const templates = [
+      // Coordinates are in a small local coordinate space around (0,0).
+      // Bonds: [aIdx, bIdx, order]
+      {
+        name: 'O2',
+        atoms: [
+          { el: 'O', x: -8, y: 0 },
+          { el: 'O', x: 8, y: 0 },
+        ],
+        bonds: [[0, 1, 2]],
+      },
+      {
+        name: 'N2',
+        atoms: [
+          { el: 'N', x: -8, y: 0 },
+          { el: 'N', x: 8, y: 0 },
+        ],
+        bonds: [[0, 1, 3]],
+      },
+      {
+        name: 'H2',
+        atoms: [
+          { el: 'H', x: -7, y: 0 },
+          { el: 'H', x: 7, y: 0 },
+        ],
+        bonds: [[0, 1, 1]],
+      },
+      {
+        name: 'H2O',
+        atoms: [
+          { el: 'O', x: 0, y: 0 },
+          { el: 'H', x: -10, y: 7 },
+          { el: 'H', x: 10, y: 7 },
+        ],
+        bonds: [
+          [0, 1, 1],
+          [0, 2, 1],
+        ],
+      },
+      {
+        name: 'CO2',
+        atoms: [
+          { el: 'O', x: -14, y: 0 },
+          { el: 'C', x: 0, y: 0 },
+          { el: 'O', x: 14, y: 0 },
+        ],
+        bonds: [
+          [0, 1, 2],
+          [1, 2, 2],
+        ],
+      },
+      {
+        name: 'CH4',
+        atoms: [
+          { el: 'C', x: 0, y: 0 },
+          { el: 'H', x: 0, y: -14 },
+          { el: 'H', x: 12, y: 6 },
+          { el: 'H', x: -12, y: 6 },
+          { el: 'H', x: 0, y: 14 },
+        ],
+        bonds: [
+          [0, 1, 1],
+          [0, 2, 1],
+          [0, 3, 1],
+          [0, 4, 1],
+        ],
+      },
+      {
+        name: 'NH3',
+        atoms: [
+          { el: 'N', x: 0, y: -2 },
+          { el: 'H', x: -11, y: 9 },
+          { el: 'H', x: 11, y: 9 },
+          { el: 'H', x: 0, y: 15 },
+        ],
+        bonds: [
+          [0, 1, 1],
+          [0, 2, 1],
+          [0, 3, 1],
+        ],
+      },
+      {
+        name: 'SO2',
+        atoms: [
+          { el: 'S', x: 0, y: 0 },
+          { el: 'O', x: -13, y: 6 },
+          { el: 'O', x: 13, y: 6 },
+        ],
+        bonds: [
+          [0, 1, 2],
+          [0, 2, 2],
+        ],
+      },
+      {
+        name: 'HCl',
+        atoms: [
+          { el: 'H', x: -8, y: 0 },
+          { el: 'Cl', x: 10, y: 0 },
+        ],
+        bonds: [[0, 1, 1]],
+      },
+      {
+        name: 'C2H6',
+        atoms: [
+          { el: 'C', x: -9, y: 0 },
+          { el: 'C', x: 9, y: 0 },
+          { el: 'H', x: -18, y: -10 },
+          { el: 'H', x: -18, y: 10 },
+          { el: 'H', x: -9, y: -15 },
+          { el: 'H', x: 18, y: -10 },
+          { el: 'H', x: 18, y: 10 },
+          { el: 'H', x: 9, y: -15 },
+        ],
+        bonds: [
+          [0, 1, 1],
+          [0, 2, 1],
+          [0, 3, 1],
+          [0, 4, 1],
+          [1, 5, 1],
+          [1, 6, 1],
+          [1, 7, 1],
+        ],
+      },
+    ];
+
+    function makeMolecule() {
+      const tmpl = templates[(Math.random() * templates.length) | 0];
+      const atoms = tmpl.atoms.map((a) => ({
+        el: a.el,
+        x: a.x,
+        y: a.y,
+        r: elementRadius(a.el),
+        c: elementColor(a.el),
+      }));
+      const bonds = tmpl.bonds;
+
+      return {
+        x: rand(0, width),
+        y: rand(0, height),
+        vx: rand(-12, 12),
+        vy: rand(-12, 12),
+        rot: rand(0, Math.PI * 2),
+        vrot: rand(-0.35, 0.35),
+        atoms,
+        bonds,
+      };
+    }
+
+    function rebuild() {
+      molecules = [];
+      const n = desiredCount();
+      for (let i = 0; i < n; i++) molecules.push(makeMolecule());
+    }
+
+    function drawBond(a, b, order) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      const sep = 2.2;
+
+      const lines = order === 3 ? [-sep, 0, sep] : order === 2 ? [-sep * 0.75, sep * 0.75] : [0];
+      for (let i = 0; i < lines.length; i++) {
+        const o = lines[i];
+        ctx.beginPath();
+        ctx.moveTo(a.x + nx * o, a.y + ny * o);
+        ctx.lineTo(b.x + nx * o, b.y + ny * o);
+        ctx.stroke();
+      }
+    }
+
+    function drawMolecule(m) {
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.rotate(m.rot);
+
+      // Bonds
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = rgba(bodyRgb, 0.22);
+      for (let i = 0; i < m.bonds.length; i++) {
+        const [aIdx, bIdx, order] = m.bonds[i];
+        const a = m.atoms[aIdx];
+        const b = m.atoms[bIdx];
+        drawBond(a, b, order || 1);
+      }
+
+      // Atoms
+      for (let i = 0; i < m.atoms.length; i++) {
+        const atom = m.atoms[i];
+        const fillAlpha = atom.el === 'H' ? 0.9 : 0.65;
+        ctx.fillStyle = rgba(atom.c, fillAlpha);
+        ctx.beginPath();
+        ctx.arc(atom.x, atom.y, atom.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hydrogen needs an outline to be visible on white backgrounds.
+        if (atom.el === 'H') {
+          ctx.strokeStyle = rgba(bodyRgb, 0.22);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function step(ts) {
+      if (!running) return;
+
+      const minFrameMs = 1000 / config.maxFps;
+      if (ts - lastTs < minFrameMs) {
+        rafId = requestAnimationFrame(step);
+        return;
+      }
+      const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0.016;
+      lastTs = ts;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Gentle motion, no collisions: wrap-around (fast + simple).
+      for (let i = 0; i < molecules.length; i++) {
+        const m = molecules[i];
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        m.rot += m.vrot * dt;
+
+        if (m.x < -24) m.x = width + 24;
+        else if (m.x > width + 24) m.x = -24;
+
+        if (m.y < -24) m.y = height + 24;
+        else if (m.y > height + 24) m.y = -24;
+
+        drawMolecule(m);
+      }
+
+      rafId = requestAnimationFrame(step);
+    }
+
+    function start() {
+      if (running) return;
+      if (clearTimer) {
+        clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+      resize();
+      rebuild();
+      running = true;
+      lastTs = 0;
+      rafId = requestAnimationFrame(step);
+    }
+
+    function stop() {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+
+      // Keep last frame for CSS fade-out.
+      if (clearTimer) clearTimeout(clearTimer);
+      clearTimer = setTimeout(() => {
+        ctx.clearRect(0, 0, width, height);
+        clearTimer = null;
+      }, 260);
+    }
+
+    const ro = new ResizeObserver(() => {
+      if (!running) return;
+      resize();
+      rebuild();
+    });
+    ro.observe(card);
+
+    return {
+      onEnter: () => start(),
       onLeave: () => stop(),
     };
   }
