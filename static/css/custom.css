@@ -1,10 +1,19 @@
 :root {
   --card-glow-strength: 0.28;
   --card-glow-softness: 62%;
+  --card-grid-size: 18px;
+  --card-grid-dot-size: 0.9px;
+  --card-grid-dot-color: rgba(var(--bs-body-color-rgb), 0.32);
 }
 
 .fx-card,
 .booklet-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.card:not(.fx-card) {
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -27,6 +36,45 @@
     rgba(var(--bs-primary-rgb), var(--card-glow-strength)),
     transparent var(--card-glow-softness)
   );
+}
+
+.card:not(.fx-card)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--bs-card-border-radius);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: 0;
+
+  /* Dotted-grid engineering paper effect for default cards */
+  background-image: radial-gradient(
+    circle at center,
+    var(--card-grid-dot-color) 0,
+    var(--card-grid-dot-color) var(--card-grid-dot-size),
+    transparent calc(var(--card-grid-dot-size) + 1px)
+  );
+  background-size: var(--card-grid-size) var(--card-grid-size);
+  background-position: 0.5px 0.5px;
+  background-repeat: repeat;
+}
+
+.card:not(.fx-card)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--bs-card-border-radius);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: 0;
+  box-shadow: inset 0 0 0 1px rgba(var(--bs-body-color-rgb), 0.08);
+}
+
+.card:not(.fx-card):hover::before,
+.card:not(.fx-card):hover::after {
+  opacity: 1;
 }
 
 .fx-card::after,
@@ -115,4 +163,10 @@
 .booklet-card .card-footer {
   position: relative;
   z-index: 2;
+}
+
+.card:not(.fx-card) .card-body,
+.card:not(.fx-card) .card-footer {
+  position: relative;
+  z-index: 1;
 }
