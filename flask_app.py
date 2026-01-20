@@ -15,9 +15,28 @@ class BookletItem:
     filename: str
     name: str
     year: str
+    effect: str
 
 
 _FILENAME_RE = re.compile(r"^(?P<name>.+)_(?P<year>\d{4})\.pdf$", re.IGNORECASE)
+
+
+_EFFECT_BY_KEYWORD: dict[str, str] = {
+    # Allow multiple keywords to map to the same effect.
+    "math": "glow-matrix",
+    "physics": "vector-field",
+    # "chemistry": "..."  # placeholder for future custom effect
+}
+
+
+def _effect_for_booklet(name: str, filename: str) -> str:
+    # Decide effects based on either booklet name or filename.
+    # Keep it simple + predictable: keyword match on lowercased strings.
+    haystack = f"{name} {filename}".lower()
+    for keyword, effect in _EFFECT_BY_KEYWORD.items():
+        if keyword in haystack:
+            return effect
+    return ""
 
 
 def create_app() -> Flask:
@@ -46,7 +65,14 @@ def create_app() -> Flask:
                     name = os.path.splitext(entry)[0]
                     year = ""
 
-                items.append(BookletItem(filename=entry, name=name, year=year))
+                items.append(
+                    BookletItem(
+                        filename=entry,
+                        name=name,
+                        year=year,
+                        effect=_effect_for_booklet(name=name, filename=entry),
+                    )
+                )
 
         return render_template("index.html", items=items, active_page="home")
 
