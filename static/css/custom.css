@@ -1,6 +1,12 @@
 :root {
   --card-glow-strength: 0.28;
   --card-glow-softness: 62%;
+  --chemistry-primary-color: 138, 43, 226; /* Purple (BlueViolet) */
+}
+
+/* Purple accent color for Chemistry cards */
+[data-subject="Chemistry"] {
+  --bs-primary-rgb: var(--chemistry-primary-color);
 }
 
 .fx-card,
@@ -81,4 +87,43 @@
 .booklet-card .card-footer {
   position: relative;
   z-index: 2;
+}
+
+/* Bubble animation styles for Chemistry cards */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(var(--bs-primary-rgb), 0.5), rgba(var(--bs-primary-rgb), 0.2));
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.4);
+  animation: rise linear infinite, sway ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes rise {
+  0% {
+    bottom: -30px;
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    bottom: 110%;
+    opacity: 0;
+  }
+}
+
+@keyframes sway {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-20px);
+  }
+  75% {
+    transform: translateX(20px);
+  }
 }

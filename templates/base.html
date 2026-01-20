@@ -63,6 +63,14 @@
         if (!cards.length) return;
 
         const DIGITS = '0123456789';
+        const BUBBLE_COUNT = 25;
+        const BUBBLE_SIZE_MIN = 10;
+        const BUBBLE_SIZE_MAX = 25;
+        const BUBBLE_STAGGER_DURATION = 2;
+        const BUBBLE_RISE_DURATION_MIN = 5;
+        const BUBBLE_RISE_DURATION_MAX = 7;
+        const BUBBLE_SWAY_DURATION_MIN = 3;
+        const BUBBLE_SWAY_DURATION_MAX = 5;
 
         function buildDigits(rows, cols) {
           let out = '';
@@ -97,10 +105,34 @@
           return Math.max(1, w);
         }
 
+        function createBubbles(container, count) {
+          const bubbles = [];
+          for (let i = 0; i < count; i++) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            const size = Math.random() * (BUBBLE_SIZE_MAX - BUBBLE_SIZE_MIN) + BUBBLE_SIZE_MIN;
+            bubble.style.width = size + 'px';
+            bubble.style.height = size + 'px';
+            bubble.style.left = Math.random() * 100 + '%';
+            // Start bubbles at different heights for immediate visual effect
+            const startDelay = (i / count) * BUBBLE_STAGGER_DURATION;
+            const swayDelay = Math.random() * (BUBBLE_SWAY_DURATION_MAX - BUBBLE_SWAY_DURATION_MIN);
+            bubble.style.animationDelay = startDelay + 's, ' + swayDelay + 's';
+            const riseDuration = Math.random() * (BUBBLE_RISE_DURATION_MAX - BUBBLE_RISE_DURATION_MIN) + BUBBLE_RISE_DURATION_MIN;
+            const swayDuration = Math.random() * (BUBBLE_SWAY_DURATION_MAX - BUBBLE_SWAY_DURATION_MIN) + BUBBLE_SWAY_DURATION_MIN;
+            bubble.style.animationDuration = riseDuration + 's, ' + swayDuration + 's';
+            container.appendChild(bubble);
+            bubbles.push(bubble);
+          }
+          return bubbles;
+        }
+
         for (const card of cards) {
           const matrix = card.querySelector('.fx-matrix');
+          const isChemistry = card.dataset.subject === 'Chemistry';
           let timer = null;
           let clearTimer = null;
+          let bubbles = [];
 
           function setGlowFromEvent(evt) {
             const rect = card.getBoundingClientRect();
@@ -120,20 +152,28 @@
               clearTimer = null;
             }
 
-            // Estimate density based on card size
-            const rect = card.getBoundingClientRect();
-            const ms = getComputedStyle(matrix);
-            const padX = parseFloat(ms.paddingLeft) + parseFloat(ms.paddingRight);
-            const padY = parseFloat(ms.paddingTop) + parseFloat(ms.paddingBottom);
-            const charW = measureCharWidth(matrix);
-            const cols = Math.max(22, Math.floor((rect.width - padX) / charW));
-            const rows = Math.max(8, Math.floor((rect.height - padY) / 18));
+            if (isChemistry) {
+              // Clear existing bubbles before creating new ones
+              bubbles.forEach(b => b.remove());
+              bubbles = [];
+              // Create animated bubbles for Chemistry card
+              bubbles = createBubbles(matrix, BUBBLE_COUNT);
+            } else {
+              // Estimate density based on card size
+              const rect = card.getBoundingClientRect();
+              const ms = getComputedStyle(matrix);
+              const padX = parseFloat(ms.paddingLeft) + parseFloat(ms.paddingRight);
+              const padY = parseFloat(ms.paddingTop) + parseFloat(ms.paddingBottom);
+              const charW = measureCharWidth(matrix);
+              const cols = Math.max(22, Math.floor((rect.width - padX) / charW));
+              const rows = Math.max(8, Math.floor((rect.height - padY) / 18));
 
-            if (timer) clearInterval(timer);
-            matrix.textContent = buildDigits(rows, cols);
-            timer = setInterval(() => {
+              if (timer) clearInterval(timer);
               matrix.textContent = buildDigits(rows, cols);
-            }, 80);
+              timer = setInterval(() => {
+                matrix.textContent = buildDigits(rows, cols);
+              }, 80);
+            }
           });
 
           card.addEventListener('mouseleave', () => {
@@ -145,7 +185,12 @@
               // Let opacity transition handle the fade-out; clear after.
               if (clearTimer) clearTimeout(clearTimer);
               clearTimer = setTimeout(() => {
-                matrix.textContent = '';
+                if (isChemistry) {
+                  bubbles.forEach(b => b.remove());
+                  bubbles = [];
+                } else {
+                  matrix.textContent = '';
+                }
                 clearTimer = null;
               }, 260);
             }
