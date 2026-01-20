@@ -97,10 +97,31 @@
           return Math.max(1, w);
         }
 
+        function createBubbles(container, count) {
+          const bubbles = [];
+          for (let i = 0; i < count; i++) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            const size = Math.random() * 15 + 10; // 10-25px
+            bubble.style.width = size + 'px';
+            bubble.style.height = size + 'px';
+            bubble.style.left = Math.random() * 100 + '%';
+            // Start bubbles at different heights for immediate visual effect
+            const startDelay = (i / count) * 2; // Stagger bubbles over 2 seconds
+            bubble.style.animationDelay = startDelay + 's, ' + (Math.random() * 2) + 's';
+            bubble.style.animationDuration = (Math.random() * 2 + 5) + 's, ' + (Math.random() * 2 + 3) + 's'; // 5-7s rise, 3-5s sway
+            container.appendChild(bubble);
+            bubbles.push(bubble);
+          }
+          return bubbles;
+        }
+
         for (const card of cards) {
           const matrix = card.querySelector('.fx-matrix');
+          const isChemistry = card.dataset.subject === 'Chemistry';
           let timer = null;
           let clearTimer = null;
+          let bubbles = [];
 
           function setGlowFromEvent(evt) {
             const rect = card.getBoundingClientRect();
@@ -120,20 +141,25 @@
               clearTimer = null;
             }
 
-            // Estimate density based on card size
-            const rect = card.getBoundingClientRect();
-            const ms = getComputedStyle(matrix);
-            const padX = parseFloat(ms.paddingLeft) + parseFloat(ms.paddingRight);
-            const padY = parseFloat(ms.paddingTop) + parseFloat(ms.paddingBottom);
-            const charW = measureCharWidth(matrix);
-            const cols = Math.max(22, Math.floor((rect.width - padX) / charW));
-            const rows = Math.max(8, Math.floor((rect.height - padY) / 18));
+            if (isChemistry) {
+              // Create animated bubbles for Chemistry card
+              bubbles = createBubbles(matrix, 25);
+            } else {
+              // Estimate density based on card size
+              const rect = card.getBoundingClientRect();
+              const ms = getComputedStyle(matrix);
+              const padX = parseFloat(ms.paddingLeft) + parseFloat(ms.paddingRight);
+              const padY = parseFloat(ms.paddingTop) + parseFloat(ms.paddingBottom);
+              const charW = measureCharWidth(matrix);
+              const cols = Math.max(22, Math.floor((rect.width - padX) / charW));
+              const rows = Math.max(8, Math.floor((rect.height - padY) / 18));
 
-            if (timer) clearInterval(timer);
-            matrix.textContent = buildDigits(rows, cols);
-            timer = setInterval(() => {
+              if (timer) clearInterval(timer);
               matrix.textContent = buildDigits(rows, cols);
-            }, 80);
+              timer = setInterval(() => {
+                matrix.textContent = buildDigits(rows, cols);
+              }, 80);
+            }
           });
 
           card.addEventListener('mouseleave', () => {
@@ -145,7 +171,12 @@
               // Let opacity transition handle the fade-out; clear after.
               if (clearTimer) clearTimeout(clearTimer);
               clearTimer = setTimeout(() => {
-                matrix.textContent = '';
+                if (isChemistry) {
+                  bubbles.forEach(b => b.remove());
+                  bubbles = [];
+                } else {
+                  matrix.textContent = '';
+                }
                 clearTimer = null;
               }, 260);
             }
