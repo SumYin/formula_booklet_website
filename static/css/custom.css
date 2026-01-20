@@ -1,11 +1,12 @@
 :root {
   --card-glow-strength: 0.28;
   --card-glow-softness: 62%;
+  --chemistry-primary-color: 138, 43, 226; /* Purple (BlueViolet) */
 }
 
 /* Purple accent color for Chemistry cards */
 [data-subject="Chemistry"] {
-  --bs-primary-rgb: 138, 43, 226; /* Purple color (BlueViolet) */
+  --bs-primary-rgb: var(--chemistry-primary-color);
 }
 
 .fx-card,

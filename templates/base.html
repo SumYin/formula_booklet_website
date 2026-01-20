@@ -63,6 +63,14 @@
         if (!cards.length) return;
 
         const DIGITS = '0123456789';
+        const BUBBLE_COUNT = 25;
+        const BUBBLE_SIZE_MIN = 10;
+        const BUBBLE_SIZE_MAX = 25;
+        const BUBBLE_STAGGER_DURATION = 2;
+        const BUBBLE_RISE_DURATION_MIN = 5;
+        const BUBBLE_RISE_DURATION_MAX = 7;
+        const BUBBLE_SWAY_DURATION_MIN = 3;
+        const BUBBLE_SWAY_DURATION_MAX = 5;
 
         function buildDigits(rows, cols) {
           let out = '';
@@ -102,14 +110,17 @@
           for (let i = 0; i < count; i++) {
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            const size = Math.random() * 15 + 10; // 10-25px
+            const size = Math.random() * (BUBBLE_SIZE_MAX - BUBBLE_SIZE_MIN) + BUBBLE_SIZE_MIN;
             bubble.style.width = size + 'px';
             bubble.style.height = size + 'px';
             bubble.style.left = Math.random() * 100 + '%';
             // Start bubbles at different heights for immediate visual effect
-            const startDelay = (i / count) * 2; // Stagger bubbles over 2 seconds
-            bubble.style.animationDelay = startDelay + 's, ' + (Math.random() * 2) + 's';
-            bubble.style.animationDuration = (Math.random() * 2 + 5) + 's, ' + (Math.random() * 2 + 3) + 's'; // 5-7s rise, 3-5s sway
+            const startDelay = (i / count) * BUBBLE_STAGGER_DURATION;
+            const swayDelay = Math.random() * (BUBBLE_SWAY_DURATION_MAX - BUBBLE_SWAY_DURATION_MIN);
+            bubble.style.animationDelay = startDelay + 's, ' + swayDelay + 's';
+            const riseDuration = Math.random() * (BUBBLE_RISE_DURATION_MAX - BUBBLE_RISE_DURATION_MIN) + BUBBLE_RISE_DURATION_MIN;
+            const swayDuration = Math.random() * (BUBBLE_SWAY_DURATION_MAX - BUBBLE_SWAY_DURATION_MIN) + BUBBLE_SWAY_DURATION_MIN;
+            bubble.style.animationDuration = riseDuration + 's, ' + swayDuration + 's';
             container.appendChild(bubble);
             bubbles.push(bubble);
           }
@@ -142,8 +153,11 @@
             }
 
             if (isChemistry) {
+              // Clear existing bubbles before creating new ones
+              bubbles.forEach(b => b.remove());
+              bubbles = [];
               // Create animated bubbles for Chemistry card
-              bubbles = createBubbles(matrix, 25);
+              bubbles = createBubbles(matrix, BUBBLE_COUNT);
             } else {
               // Estimate density based on card size
               const rect = card.getBoundingClientRect();
