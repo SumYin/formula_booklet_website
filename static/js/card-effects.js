@@ -182,7 +182,7 @@
     const canvas = card.querySelector('canvas.fx-canvas');
     if (!canvas) return {};
 
-    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return {};
 
     const rootStyles = getComputedStyle(document.documentElement);
@@ -382,7 +382,7 @@
     const canvas = card.querySelector('canvas.fx-canvas');
     if (!canvas) return {};
 
-    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return {};
 
     function parseCssColorToRgb(color) {
